@@ -1,7 +1,7 @@
 from red_commons.logging import getLogger
 from redbot.core import commands, app_commands, Config
 import discord
-from typing import Optional, Dict, Any
+from typing import Dict, Any
 from datetime import datetime
 
 log = getLogger("red.rppanel")
@@ -32,44 +32,17 @@ class RPPanel(commands.Cog):
             await ctx.send("Use a valid subcommand. E.g.: [p]rppanel ping")
 
     @rppanel_group.command(name="ping")
-    async def ping_prefix(self, ctx: commands.Context, mode: Optional[str] = None):
-        """Ping (prefix) with optional mode.
-
-        mode: normal | ephemeral | debug (case-insensitive)
-        """
-        mode_l = (mode or "normal").lower()
+    async def ping_prefix(self, ctx: commands.Context):
+        """Simple latency ping (prefix)."""
         latency_ms = round(self.bot.latency * 1000, 2) if self.bot.latency else 0
-        base = f"Pong! Latency: {latency_ms} ms"
-        if mode_l.startswith("debug"):
-            base += f" | Raw WS: {self.bot.latency:.4f}s"
-        await ctx.send(base)
+        await ctx.send(f"Pong! Latency: {latency_ms} ms")
 
     # ---------- Slash commands ----------
-    @rppanel_app.command(name="ping", description="Ping response test")
-    @app_commands.describe(mode="normal | ephemeral | debug")
-    async def ping_slash(self, interaction: discord.Interaction, mode: Optional[str] = None):  # type: ignore[override]
-        """Ping (slash) with autocomplete argument."""
-        mode_l = (mode or "normal").lower()
+    @rppanel_app.command(name="ping", description="Simple latency ping")
+    async def ping_slash(self, interaction: discord.Interaction):  # type: ignore[override]
+        """Simple latency ping (slash)."""
         latency_ms = round(interaction.client.latency * 1000, 2) if interaction.client.latency else 0
-        ephemeral = False
-        extra = ""
-        if mode_l.startswith("eph"):
-            ephemeral = True
-        if mode_l.startswith("debug"):
-            extra = f" | Raw: {interaction.client.latency:.4f}s"
-        content = f"Pong! Latency: {latency_ms} ms{extra}"
-        await interaction.response.send_message(content, ephemeral=ephemeral)
-
-    @ping_slash.autocomplete("mode")
-    async def ping_slash_mode_autocomplete(self, interaction: discord.Interaction, current: str):  # type: ignore[override]
-        options = [
-            ("normal", "normal"),
-            ("ephemeral (only you see it)", "ephemeral"),
-            ("debug (extra info)", "debug"),
-        ]
-        current_l = current.lower()
-        filtered = [c for c in options if current_l in c[1]] if current else options
-        return [app_commands.Choice(name=n, value=v) for n, v in filtered[:5]]
+        await interaction.response.send_message(f"Pong! Latency: {latency_ms} ms", ephemeral=True)
 
     # ---------- Helper methods ----------
     async def _get_instances(self, guild: discord.Guild) -> Dict[str, Dict[str, Any]]:

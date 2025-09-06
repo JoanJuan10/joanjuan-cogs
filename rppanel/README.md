@@ -5,13 +5,13 @@ Base cog for a role-play utilities panel with both prefix and slash commands.
 ## Commands
 
 Prefix:
-- `[p]rppanel ping`
+- `[p]rppanel ping` (simple latency)
 - `[p]rppanel create <name>`
 - `[p]rppanel delete <name>`
 - `[p]rppanel list`
 
 Slash (after syncing):
-- `/rppanel ping`
+- `/rppanel ping` (ephemeral latency)
 - `/rppanel create name:<name>`
 - `/rppanel delete name:<name>`
 - `/rppanel list`
