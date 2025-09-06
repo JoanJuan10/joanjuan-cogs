@@ -1,0 +1,18 @@
+{
+  "author": ["JoanJuan"],
+  "description": "Panel para gestionar recursos de rol (ejemplo base).",
+  "disabled": false,
+  "end_user_data_statement": "Este cog no almacena datos persistentes de usuarios.",
+  "hidden": false,
+  "install_msg": "Gracias por instalar rppanel.",
+  "max_bot_version": "0.0.0",
+  "min_bot_version": "3.5.0",
+  "min_python_version": [3, 9, 0],
+  "name": "RPPanel",
+  "required_cogs": {},
+  "requirements": [],
+  "short": "Panel RP básico.",
+  "tags": ["rp", "panel", "example"],
+  "type": "COG",
+  "permissions": []
+}
