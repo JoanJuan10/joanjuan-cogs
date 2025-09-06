@@ -15,7 +15,7 @@ class RpPanel(commands.Cog):
     def __init__(self, bot: Red):
         self.bot = bot
         self.config: Config = Config.get_conf(self, identifier=0xA11A11A11, force_registration=True)
-    # Default guild-level config structure
+        # Default guild-level config structure
         default_guild = {
             "enabled": True,
             "panels": {},  # panel_id -> {"title": str|None, "stats": {label: value}}
@@ -49,7 +49,7 @@ class RpPanel(commands.Cog):
         await ctx.send(f"RpPanel version {self.__version__}")
 
     # --------------------------------------------------
-    # Toggle simple a nivel de servidor
+    # Simple guild-level toggle
     # --------------------------------------------------
     @rppanel.command(name="toggle")
     @commands.admin_or_permissions(manage_guild=True)
