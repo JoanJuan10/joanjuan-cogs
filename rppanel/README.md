@@ -1,35 +1,42 @@
 # RPPanel
 
-Cog base para un panel de utilidades de rol con comandos de prefijo y slash.
+Base cog for a role-play utilities panel with both prefix and slash commands.
 
-## Comandos
+## Commands
 
-Prefijo:
+Prefix:
 - `[p]rppanel ping`
+- `[p]rppanel create <name>`
+- `[p]rppanel delete <name>`
+- `[p]rppanel list`
 
-Slash (tras sincronizar):
+Slash (after syncing):
 - `/rppanel ping`
+- `/rppanel create name:<name>`
+- `/rppanel delete name:<name>`
+- `/rppanel list`
 
-La respuesta slash es efímera (solo visible para quien la usa); puedes cambiarlo en el código quitando `ephemeral=True`.
+The slash response is ephemeral (only you see it); remove `ephemeral=True` in code to change.
 
-## Instalación
+## Installation
 
-1. Añade el repo si no está:
+1. Add the repo if not already:
    `[p]repo add joanjuan-cogs https://github.com/JoanJuan10/joanjuan-cogs`
-2. Instala:
+2. Install:
    `[p]cog install joanjuan-cogs rppanel`
-3. Carga:
+3. Load:
    `[p]load rppanel`
-4. Sincroniza slash (global):
-   `[p]slash sync`  (puede tardar hasta 1h en global; para un servidor rápido usa abajo)
+4. Sync slash (global):
+   `[p]slash sync`  (may take up to 1h globally; for faster server-specific sync below)
    
-   Para un solo servidor (en el servidor objetivo):
+   Single server (run inside target guild):
    `[p]slash sync guild`
-5. Prueba:
-   - Prefijo: `[p]rppanel ping`
-   - Slash: `/rppanel ping` (puede requerir refrescar Discord con Ctrl+R)
+5. Test:
+   - Prefix: `[p]rppanel ping`
+   - Slash: `/rppanel ping` (you may need to refresh Discord with Ctrl+R)
 
-## Notas
-- No guarda datos persistentes.
-- Al recargar el cog se eliminan los comandos para evitar duplicados.
-- Si cambias estructura de slash, ejecuta de nuevo `[p]slash sync guild`.
+## Notes
+- Stores no persistent user data.
+- On reload the cog removes commands to prevent duplicates.
+- If you change slash structure, run `[p]slash sync guild` again.
+- Instances are stored per guild using Red's Config under a dictionary keyed by lowercase name.
