@@ -1,17 +1,12 @@
-from .rppanel import RPPanel
+from .rppanel import RpPanel
+
+__all__ = ["RpPanel"]
+__version__ = "0.0.2"
+
 
 async def setup(bot):
-    cog = RPPanel(bot)
-    await bot.add_cog(cog)
-    # Añadimos el grupo slash manualmente
-    try:
-        bot.tree.add_command(cog.rppanel_app)  # type: ignore[attr-defined]
-    except Exception:
-        # Si ya existe, lo ignoramos.
-        pass
+    """Load the cog into Red.
 
-async def teardown(bot):  # Red lo llamará al descargar
-    try:
-        bot.tree.remove_command("rppanel")
-    except Exception:
-        pass
+    Red looks for an async setup(bot) coroutine to add cogs.
+    """
+    await bot.add_cog(RpPanel(bot))

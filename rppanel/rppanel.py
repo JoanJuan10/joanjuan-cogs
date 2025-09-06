@@ -1,204 +1,169 @@
-from red_commons.logging import getLogger
-from redbot.core import commands, app_commands, Config
-import discord
-from typing import Dict, Any
-from datetime import datetime
+from redbot.core import commands, Config
+from redbot.core.bot import Red
+from typing import Final
 
-log = getLogger("red.rppanel")
 
-class RPPanel(commands.Cog):
-    """Basic role-play utilities panel with separated prefix and slash commands.
+class RpPanel(commands.Cog):
+    """Basic tools for managing a roleplay (RP) panel.
 
-    - Prefix: [p]rppanel ping
-    - Slash: /rppanel ping
+    This is a starting skeleton you can extend with more features.
     """
 
-    # Slash group (not directly invokable, only subcommands)
-    rppanel_app = app_commands.Group(name="rppanel", description="RP panel commands")
+    __author__: Final[str] = "JoanJuan10"
+    __version__: Final[str] = "0.1.0"
 
-    def __init__(self, bot):
+    def __init__(self, bot: Red):
         self.bot = bot
-        # Config: store instances per guild.
-        # Structure: { name_lower: {"display": original_name, "created_by": user_id, "created_at": iso, "active": bool } }
-        self.config: Config = Config.get_conf(self, identifier=0x5A7A2F11C0, force_registration=True)
-        self.config.register_guild(instances={})
-        log.debug("RPPanel initialized")
-
-    # ---------- Prefix commands ----------
-    @commands.group(name="rppanel")
-    async def rppanel_group(self, ctx: commands.Context):
-        """RP command group (prefix)."""
-        if ctx.invoked_subcommand is None:
-            await ctx.send("Use a valid subcommand. E.g.: [p]rppanel ping")
-
-    @rppanel_group.command(name="ping")
-    async def ping_prefix(self, ctx: commands.Context):
-        """Simple latency ping (prefix)."""
-        latency_ms = round(self.bot.latency * 1000, 2) if self.bot.latency else 0
-        await ctx.send(f"Pong! Latency: {latency_ms} ms")
-
-    # ---------- Slash commands ----------
-    @rppanel_app.command(name="ping", description="Simple latency ping")
-    async def ping_slash(self, interaction: discord.Interaction):  # type: ignore[override]
-        """Simple latency ping (slash)."""
-        latency_ms = round(interaction.client.latency * 1000, 2) if interaction.client.latency else 0
-        await interaction.response.send_message(f"Pong! Latency: {latency_ms} ms", ephemeral=True)
-
-    # ---------- Helper methods ----------
-    async def _get_instances(self, guild: discord.Guild) -> Dict[str, Dict[str, Any]]:
-        return await self.config.guild(guild).instances()
-
-    async def _save_instances(self, guild: discord.Guild, data: Dict[str, Dict[str, Any]]):
-        await self.config.guild(guild).instances.set(data)
-
-    def _sanitize_name(self, name: str) -> str:
-        return name.strip().lower()
-
-    # ---------- Prefix: create instance ----------
-    @rppanel_group.command(name="create")
-    async def create_prefix(self, ctx: commands.Context, name: str):
-        """Create a new instance with the given name."""
-        if not name or len(name) > 50:
-            return await ctx.send("Name must be between 1 and 50 characters.")
-        guild = ctx.guild
-        if guild is None:
-            return await ctx.send("Guild only.")
-        key = self._sanitize_name(name)
-        instances = await self._get_instances(guild)
-        if key in instances:
-            return await ctx.send(f"An instance with that name already exists: {instances[key]['display']}")
-        instances[key] = {
-            "display": name,
-            "created_by": ctx.author.id,
-            "created_at": datetime.utcnow().isoformat(),
-            "active": True,
+        self.config: Config = Config.get_conf(self, identifier=0xA11A11A11, force_registration=True)
+    # Default guild-level config structure
+        default_guild = {
+            "enabled": True,
+            "panels": {},  # panel_id -> {"title": str|None, "stats": {label: value}}
         }
-        await self._save_instances(guild, instances)
-        await ctx.send(f"Instance '{name}' created.")
+        self.config.register_guild(**default_guild)
 
-    # ---------- Prefix: delete instance ----------
-    @rppanel_group.command(name="delete")
-    async def delete_prefix(self, ctx: commands.Context, name: str):
-        """Delete an existing instance by name (case-insensitive)."""
-        if not name:
-            return await ctx.send("Provide a name to delete.")
-        guild = ctx.guild
-        if guild is None:
-            return await ctx.send("Guild only.")
-        key = self._sanitize_name(name)
-        instances = await self._get_instances(guild)
-        if key not in instances:
-            return await ctx.send("Instance not found.")
-        removed = instances.pop(key)
-        await self._save_instances(guild, instances)
-        await ctx.send(f"Instance '{removed['display']}' deleted.")
+    # --------------------------------------------------
+    # Info & utilities
+    # --------------------------------------------------
+    def format_help_for_context(self, ctx: commands.Context) -> str:  # type: ignore[override]
+        base = super().format_help_for_context(ctx)
+    return f"{base}\n\nAuthor: {self.__author__} | Version: {self.__version__}"
 
-    @rppanel_group.command(name="list")
-    async def list_prefix(self, ctx: commands.Context):
-        """List stored instances (prefix)."""
-        guild = ctx.guild
-        if guild is None:
-            return await ctx.send("Guild only.")
-        instances = await self._get_instances(guild)
-        if not instances:
-            return await ctx.send("No instances found.")
-        # Sort by creation time (oldest first)
-        def _sort_key(item):
-            return item[1].get("created_at", "")
-        items = sorted(instances.items(), key=_sort_key)
-        lines = []
-        for key, meta in items[:20]:
-            lines.append(self._format_instance_line(meta))
-        if len(items) > 20:
-            lines.append(f"… {len(items) - 20} more not shown")
-        await ctx.send("Instances:\n" + "\n".join(lines))
+    async def red_delete_data_for_user(self, **kwargs):  # noqa: D401
+        """This cog stores no persistent user data."""
+        return
 
-    # ---------- Slash: create instance ----------
-    @rppanel_app.command(name="create", description="Create a new instance")
-    @app_commands.describe(name="Instance name")
-    async def create_slash(self, interaction: discord.Interaction, name: str):  # type: ignore[override]
-        if not interaction.guild:
-            return await interaction.response.send_message("Guild only.", ephemeral=True)
-        if not name or len(name) > 50:
-            return await interaction.response.send_message("Name must be between 1 and 50 characters.", ephemeral=True)
-        key = self._sanitize_name(name)
-        instances = await self._get_instances(interaction.guild)
-        if key in instances:
-            return await interaction.response.send_message("Instance already exists.", ephemeral=True)
-        instances[key] = {
-            "display": name,
-            "created_by": interaction.user.id,
-            "created_at": datetime.utcnow().isoformat(),
-            "active": True,
-        }
-        await self._save_instances(interaction.guild, instances)
-        await interaction.response.send_message(f"Instance '{name}' created.", ephemeral=True)
+    @commands.hybrid_group(name="rppanel")
+    async def rppanel(self, ctx: commands.Context):
+        """RP panel commands."""
+        pass
 
-    # ---------- Slash: delete instance ----------
-    @rppanel_app.command(name="delete", description="Delete an instance")
-    @app_commands.describe(name="Instance name")
-    @app_commands.autocomplete(name=lambda self, interaction, current: self._instance_name_choices(interaction, current))
-    async def delete_slash(self, interaction: discord.Interaction, name: str):  # type: ignore[override]
-        if not interaction.guild:
-            return await interaction.response.send_message("Guild only.", ephemeral=True)
-        key = self._sanitize_name(name)
-        instances = await self._get_instances(interaction.guild)
-        if key not in instances:
-            return await interaction.response.send_message("Instance not found.", ephemeral=True)
-        removed = instances.pop(key)
-        await self._save_instances(interaction.guild, instances)
-        await interaction.response.send_message(f"Instance '{removed['display']}' deleted.", ephemeral=True)
+    @rppanel.command(name="ping")
+    async def rppanel_ping(self, ctx: commands.Context):
+        """Check if the cog is alive."""
+        await ctx.send("RpPanel alive ✅")
 
-    @rppanel_app.command(name="list", description="List instances")
-    async def list_slash(self, interaction: discord.Interaction):  # type: ignore[override]
-        if not interaction.guild:
-            return await interaction.response.send_message("Guild only.", ephemeral=True)
-        instances = await self._get_instances(interaction.guild)
-        if not instances:
-            return await interaction.response.send_message("No instances found.", ephemeral=True)
-        def _sort_key(item):
-            return item[1].get("created_at", "")
-        items = sorted(instances.items(), key=_sort_key)
-        lines = []
-        for key, meta in items[:25]:
-            lines.append(self._format_instance_line(meta))
-        if len(items) > 25:
-            lines.append(f"… {len(items) - 25} more not shown")
-        content = "Instances:\n" + "\n".join(lines)
-        # Use ephemeral to avoid clutter
-        await interaction.response.send_message(content, ephemeral=True)
+    @rppanel.command(name="version")
+    async def rppanel_version(self, ctx: commands.Context):
+        """Show the cog version."""
+        await ctx.send(f"RpPanel version {self.__version__}")
 
-    # Autocomplete for a future 'instance' parameter in other commands (re-usable)
-    async def instance_name_autocomplete(self, interaction: discord.Interaction, current: str):
-        # Deprecated helper; kept for backward compatibility if referenced elsewhere.
-        return await self._instance_name_choices(interaction, current)
+    # --------------------------------------------------
+    # Toggle simple a nivel de servidor
+    # --------------------------------------------------
+    @rppanel.command(name="toggle")
+    @commands.admin_or_permissions(manage_guild=True)
+    async def rppanel_toggle(self, ctx: commands.Context):
+        """Enable or disable the RP panel in this guild."""
+        current = await self.config.guild(ctx.guild).enabled()
+        await self.config.guild(ctx.guild).enabled.set(not current)
+        state = "enabled" if not current else "disabled"
+        await ctx.send(f"RP panel {state} for this guild.")
 
-    async def _instance_name_choices(self, interaction: discord.Interaction, current: str):
-        if not interaction.guild:
-            return []
-        instances = await self._get_instances(interaction.guild)
-        current_l = current.lower()
-        matches = [meta for key, meta in instances.items() if current_l in key or current_l in meta["display"].lower()]
-        return [app_commands.Choice(name=m["display"], value=m["display"]) for m in matches[:20]]
+    # --------------------------------------------------
+    # Panel management
+    # --------------------------------------------------
+    def _validate_panel_id(self, panel_id: str) -> bool:
+        import re
+        return bool(re.fullmatch(r"[A-Za-z0-9_\-]{1,30}", panel_id))
 
-    def _format_instance_line(self, meta: Dict[str, Any]) -> str:
-        disp = meta.get("display", "?")
-        created_at = meta.get("created_at")
-        active = meta.get("active", True)
-        ts_part = ""
-        try:
-            if created_at:
-                dt = datetime.fromisoformat(created_at)
-                ts_part = f" <t:{int(dt.timestamp())}:R>"
-        except Exception:
-            pass
-        status = "active" if active else "inactive"
-        return f"- {disp} ({status}){ts_part}"
+    @rppanel.command(name="create")
+    @commands.admin_or_permissions(manage_guild=True)
+    async def rppanel_create(self, ctx: commands.Context, panel_id: str, *, title: str | None = None):
+        """Create a new panel with an identifier.
 
-    # ---------- Internal utilities ----------
-    def cog_unload(self):
-        # Remove the group from the tree on unload to prevent duplicates on reload.
-        try:
-            self.bot.tree.remove_command("rppanel")  # type: ignore[attr-defined]
-        except Exception:  # pragma: no cover
-            pass
+        panel_id: Alphanumeric, dash and underscore only (max 30 chars)
+        title: Optional panel title.
+        """
+        if ctx.guild is None:
+            return await ctx.send("Guild only command.")
+        if not self._validate_panel_id(panel_id):
+            return await ctx.send("Invalid panel_id. Use only letters, numbers, - and _. Max length 30.")
+        panels = await self.config.guild(ctx.guild).panels()
+        if panel_id in panels:
+            return await ctx.send("Panel ID already exists.")
+        panels[panel_id] = {"title": title, "stats": {}}
+        await self.config.guild(ctx.guild).panels.set(panels)
+        await ctx.send(f"Created panel `{panel_id}`{' with title' if title else ''}.")
+
+    @rppanel.command(name="delete")
+    @commands.admin_or_permissions(manage_guild=True)
+    async def rppanel_delete(self, ctx: commands.Context, panel_id: str):
+        """Delete a panel and its stats."""
+        if ctx.guild is None:
+            return await ctx.send("Guild only command.")
+        panels = await self.config.guild(ctx.guild).panels()
+        if panel_id not in panels:
+            return await ctx.send("Panel not found.")
+        del panels[panel_id]
+        await self.config.guild(ctx.guild).panels.set(panels)
+        await ctx.send(f"Deleted panel `{panel_id}`.")
+
+    @rppanel.command(name="set")
+    @commands.admin_or_permissions(manage_guild=True)
+    async def rppanel_set(self, ctx: commands.Context, panel_id: str, label: str, *, value: str):
+        """Add or update a stat label for a panel.
+
+        Example: [p]rppanel set character1 HP 120/150
+        """
+        if ctx.guild is None:
+            return await ctx.send("Guild only command.")
+        if len(label) > 40:
+            return await ctx.send("Label too long (max 40 chars).")
+        if len(value) > 200:
+            return await ctx.send("Value too long (max 200 chars).")
+        panels = await self.config.guild(ctx.guild).panels()
+        panel = panels.get(panel_id)
+        if panel is None:
+            return await ctx.send("Panel not found.")
+        panel["stats"][label] = value
+        await self.config.guild(ctx.guild).panels.set(panels)
+        await ctx.send(f"Stat `{label}` set for panel `{panel_id}`.")
+
+    @rppanel.command(name="remove")
+    @commands.admin_or_permissions(manage_guild=True)
+    async def rppanel_remove(self, ctx: commands.Context, panel_id: str, label: str):
+        """Remove a stat label from a panel."""
+        if ctx.guild is None:
+            return await ctx.send("Guild only command.")
+        panels = await self.config.guild(ctx.guild).panels()
+        panel = panels.get(panel_id)
+        if panel is None:
+            return await ctx.send("Panel not found.")
+        if label not in panel["stats"]:
+            return await ctx.send("Stat label not found.")
+        del panel["stats"][label]
+        await self.config.guild(ctx.guild).panels.set(panels)
+        await ctx.send(f"Removed `{label}` from `{panel_id}`.")
+
+    @rppanel.command(name="show")
+    async def rppanel_show(self, ctx: commands.Context, panel_id: str):
+        """Display a panel with its stats."""
+        if ctx.guild is None:
+            return await ctx.send("Guild only command.")
+        panels = await self.config.guild(ctx.guild).panels()
+        panel = panels.get(panel_id)
+        if panel is None:
+            return await ctx.send("Panel not found.")
+        stats = panel["stats"]
+        if not stats:
+            return await ctx.send("Panel has no stats yet.")
+        from discord import Embed
+        title = panel.get("title") or f"Panel: {panel_id}"
+        embed = Embed(title=title)
+        for label, value in stats.items():
+            # Prevent empty field issue
+            embed.add_field(name=label[:256] or "-", value=value[:1024] or "-", inline=False)
+        embed.set_footer(text=f"RpPanel v{self.__version__}")
+        await ctx.send(embed=embed)
+
+    @rppanel.command(name="list")
+    async def rppanel_list(self, ctx: commands.Context):
+        """List available panel IDs."""
+        if ctx.guild is None:
+            return await ctx.send("Guild only command.")
+        panels = await self.config.guild(ctx.guild).panels()
+        if not panels:
+            return await ctx.send("No panels created.")
+        ids = ", ".join(sorted(panels.keys()))
+        await ctx.send(f"Panels: {ids}")
